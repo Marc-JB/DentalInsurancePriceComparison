@@ -1,20 +1,42 @@
+const careAllowance = 1287_00
+
+/**
+ * @typedef {(costsForCheckups: number, costsForCare: number) => number} DentalCarePaidByInsuranceCalculator
+ * @typedef {{name: string, yearlyCosts: number, insurancePays: DentalCarePaidByInsuranceCalculator}} InsuranceSpecification
+ */
+
+/**
+ * @type {DentalCarePaidByInsuranceCalculator}
+ */
 const insurancePaysNothing = (costsForCheckups, costsForCare) => 0
 
+/**
+ * @type {DentalCarePaidByInsuranceCalculator}
+ */
 const insurancePays75PercentUntil250 = (costsForCheckups, costsForCare) => {
     const tmp = (costsForCheckups + costsForCare) * 0.75
     return tmp > 250_00 ? 250_00 : Math.round(tmp)
 }
 
+/**
+ * @type {DentalCarePaidByInsuranceCalculator}
+ */
 const insurancePays75PercentAndCheckupsUntil250 = (costsForCheckups, costsForCare) => {
     const tmp = costsForCheckups + (costsForCare * 0.75)
     return tmp > 250_00 ? 250_00 : Math.round(tmp)
 }
 
+/**
+ * @type {DentalCarePaidByInsuranceCalculator}
+ */
 const insurancePaysUntil250 = (costsForCheckups, costsForCare) => {
     const tmp = costsForCheckups + costsForCare
     return tmp > 250_00 ? 250_00 : Math.round(tmp)
 }
 
+/**
+ * @type {InsuranceSpecification[]}
+ */
 const insurances = [
     {
         name: "ZieZo",
@@ -59,40 +81,53 @@ const insurances = [
     }
 ]
 
-let minimalPay = insurances[0].yearlyCosts
-for (const insurance of insurances) {
-    if(insurance.yearlyCosts < minimalPay) {
-        minimalPay = insurance.yearlyCosts
-    }
-}
-
+/**
+ * @param {InsuranceSpecification} insurance 
+ * @param {number} checkUpCosts 
+ * @param {number} dentalCareCosts 
+ */
 function calculateYearlyCostsInCents(insurance, checkUpCosts, dentalCareCosts) {
     const dentalCostsTotal = checkUpCosts + dentalCareCosts
     const dentalCostsPaidByInsurance = insurance.insurancePays(checkUpCosts, dentalCareCosts)
     const consumerDentalCosts = dentalCostsTotal - dentalCostsPaidByInsurance
-    return consumerDentalCosts + insurance.yearlyCosts - minimalPay
+    return consumerDentalCosts + insurance.yearlyCosts - careAllowance
 }
+
+// @ts-ignore
+const allArgs = process.argv
+/** 
+ * @type {string[]}
+ */
+const args = allArgs.slice(2)
+const included = args[0] === "--include" || args[0] === "-i" ? args[2] === "--dental" || args[2] === "-d" ? args[1] + " 🦷" : args[1] : null
 
 const costsForInsurance = []
 const checkUpConstsOnce = 22_50
 for(let checkUpCosts = checkUpConstsOnce * 2; checkUpCosts <= checkUpConstsOnce * 2; checkUpCosts += checkUpConstsOnce) {
-    for(let dentalCareCosts = 0; dentalCareCosts <= 260_00; dentalCareCosts += 5_00) {
+    for(let dentalCareCosts = 0; dentalCareCosts <= 320_00; dentalCareCosts += 10_00) {
         const obj = { 
             checkups: checkUpCosts / checkUpConstsOnce, 
             additional: dentalCareCosts / 100
         }
+        /**
+         * @param {InsuranceSpecification} insurance 
+         */
         function checkPrice(insurance) {
             return calculateYearlyCostsInCents(insurance, checkUpCosts, dentalCareCosts)
         }
         const sorted = insurances.sort((a, b) => checkPrice(a) - checkPrice(b))
-        obj["1st"] = sorted[0].name
-        obj["1st (€)"] = checkPrice(sorted[0]) / 100
-        obj["2nd"] = sorted[1].name
-        obj["2nd (€)"] = checkPrice(sorted[1]) / 100
-        obj["2nd (diff)"] = (checkPrice(sorted[1]) - checkPrice(sorted[0])) / 100
-        obj["3rd"] = sorted[2].name
-        obj["3rd (€)"] = checkPrice(sorted[2]) / 100
-        obj["3rd (diff)"] = (checkPrice(sorted[2]) - checkPrice(sorted[0])) / 100
+        const first = sorted[0]
+        obj["1st"] = first.name
+        obj["1st (€)"] = checkPrice(first) / 100
+        const second = sorted[1]
+        obj["2nd"] = second.name
+        obj["2nd (€)"] = checkPrice(second) / 100
+        obj["2nd (diff)"] = (checkPrice(second) - checkPrice(first)) / 100
+        const customThird = included !== null && first.name !== included && second.name !== included
+        const third = customThird ? sorted.find(it => it.name === included) ?? sorted[2] : sorted[2]
+        obj["3rd"] = third.name
+        obj["3rd (€)"] = checkPrice(third) / 100
+        obj["3rd (diff)"] = (checkPrice(third) - checkPrice(first)) / 100
         costsForInsurance.push(obj)
     }
 }
